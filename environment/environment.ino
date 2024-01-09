@@ -9,6 +9,18 @@
 #define LED_light 3
 #define PHOTO_RESISTOR A0
 
+const int VIN = 5.0;
+const int R_light = 10000.0;
+
+int sensorRawToPhys(int aValue){
+  // Code from https://www.aranacorp.com/en/luminosity-measurement-with-a-photoresistor/
+  // Conversion rule
+  float Vout = float(aValue) * (VIN / float(1023));// Conversion analog to voltage
+  float RLDR = (R_light * (VIN - Vout))/Vout; // Conversion voltage to resistance
+  int phys=500/(RLDR/1000); // Conversion resitance to lumen
+  return phys;
+}
+
 dht11 DHT11;
 
 // Set pinmodes for the LEDs and start the serial monitor.
@@ -26,6 +38,10 @@ void checkLightIntensity() {
 
   Serial.println("Analog  Value: ");
   Serial.println(value);
+
+  float lux = sensorRawToPhys(value);     
+  Serial.println("Intensity in Lumen: ");
+  Serial.println(lux);
     
   if (value > 900) {
     digitalWrite(LED_light, HIGH);
