@@ -4,7 +4,6 @@ char error_array[9][17] = { "Humidity low    ", "Humidity high   ", "Flash detec
 
 void setup() {
   Serial.begin(9600);
-  pinMode(A0, INPUT);
   lcd.init();  // initialize the lcd
   lcd.backlight();
 }
