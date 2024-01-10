@@ -3,7 +3,7 @@
 #include <dht11.h>
 
 // Define the correct ports
-#define DHT11PIN 2
+#define DHT11PIN D2
 #define LED_humid 5
 #define LED_temp 10
 #define LED_light 3
