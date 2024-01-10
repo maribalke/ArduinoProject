@@ -12,7 +12,9 @@ ESP8266WebServer server(80);
 const int stepsPerRevolution = 80;  // change this to fit the number of steps per revolution
 // for your motor
 int count = 0;
-bool on = false;
+bool fanOn = false;
+String btnTxt = "Turn fan on";
+String btnColor = "green";
 
 // initialize the stepper library on pins 8 through 11:
 Stepper myStepper(stepsPerRevolution, D2, D3, D4, D5);
@@ -25,16 +27,15 @@ void setup() {
   Serial.begin(115200);
   delay(10);
 
+  // Obs - when using a higher speed the motor wont step. Can use setSpeed(300) if using a 9V-battery
   myStepper.setSpeed(200);
   
   // Connect to WiFi network
   Serial.println();
-  wifiMulti.addAP("mariBF", "marimari");  // add Wi-Fi networks you want to connect to
-  //wifiMulti.addAP("<ssid2>", "<password>");  
-  
+  wifiMulti.addAP("mariBF", "marimari"); 
+ 
   Serial.println();
   Serial.print("Connecting ...");
-  //WiFi.begin(ssid, password);
  
   while (wifiMulti.run() != WL_CONNECTED) {
     delay(500);
@@ -64,7 +65,7 @@ void setup() {
 void loop() {
   // Check if a client has connected
   
-  if(on){
+  if(fanOn){
     myStepper.step(1);
   } else{
     myStepper.step(0);
@@ -81,8 +82,8 @@ void handleRoot() {
                 "<style>"
                 "body { font-family: Arial, sans-serif; text-align: center; }"
                 ".container { margin-top: 50px; }"
-                ".btn { width: 200px; height: 60px; font-size: 18px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }"
-                ".btn:hover { background-color: #45a049; }"
+                ".btn { width: 200px; height: 60px; font-size: 18px; background-color:" +btnColor+ "; color: white; border: none; border-radius: 5px; cursor: pointer; }"
+                ".btn:hover { background-color:"+btnColor+"; }"
                 "</style>"
                 "</head>"
                 "<body>"
@@ -91,7 +92,7 @@ void handleRoot() {
                 "<p>In order to lower the temperature in the art gallery, we have installed a fan that can manually be turned on and off.</p>"
                 "<p>Click the button below to turn the fan on or off</p>"
                 "<form action='/FAN' method='POST'>"
-                "<input type='submit' value='Change Fan State' class='btn'>"
+                "<input type='submit' value='"+btnTxt+ "'class='btn'>"
                 "</form>"
                 "</div>"
                 "</body>"
@@ -106,14 +107,19 @@ void setStateFan(){
   Function that set the state of the fan to the opposite of its previous state by using a count variable
   */
 
+  // Variable to keep track of the number of times the function is called
   count ++;
-  if(count%2 == 0){
-    on = false;
+  if(count%2 == 0){ 
+    fanOn = false;
+    btnTxt = "Turn fan on";
+    btnColor = "green";
   }else{
-    on = true;
+    fanOn = true;
+    btnTxt = "Turn fan off";
+    btnColor = "red";
   }
-  server.sendHeader("Location","/");        // Add a header to respond with a new location for the browser to go to the home page again
-  server.send(303);    // Send it back to the browser with an HTTP status 303 (See Other) to redirect          
+  server.sendHeader("Location","/"); // Add a header to respond with a new location for the browser to go to the home page again
+  server.send(303);   // Send it back to the browser with an HTTP status 303 (See Other) to redirect          
 }
 
 void handleNotFound(){
