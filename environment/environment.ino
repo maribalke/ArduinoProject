@@ -28,7 +28,6 @@ void  setup()
   pinMode(LED_HUMID, OUTPUT);
   pinMode(LED_TEMP, OUTPUT);
   pinMode(LED_LIGHT, OUTPUT);
-<<<<<<< HEAD
   WiFi.begin(ssid, pass);
 }
 
@@ -42,8 +41,6 @@ int sensorRawToPhys(int aValue){
   float RLDR = (R_light * (VIN - Vout))/Vout; // Conversion voltage to resistance
   int phys=500/(RLDR/1000); // Conversion resitance to lumen
   return phys;
-=======
->>>>>>> 135e296618deba5328bfe0e2a93004308c3bc022
 }
 
 // Checks the light intensity with a photo resistor and raises alarm if value is too high.
@@ -56,11 +53,7 @@ void checkLightIntensity() {
 
   ThingSpeak.setField(6, lux);
     
-<<<<<<< HEAD
   if (lux > 400 || lux < 0) {
-=======
-  if (value > 900) {
->>>>>>> 135e296618deba5328bfe0e2a93004308c3bc022
     digitalWrite(LED_LIGHT, HIGH);
   } else {
     digitalWrite(LED_LIGHT,  LOW);
