@@ -1,5 +1,6 @@
-int motion_sensor_pin = 2; //Pin connected to motion sensors output
-int alarm_led_output = 3; //Not important, output pin for testing
+int motion_sensor_pin = 2;    //Pin connected to motion sensors output
+int alarm_led_output = 3;     //Not important, output pin for testing
+bool turn_off_alarm = false;  //Toggle alarm, 1 for OFF
 
 void setup() {
   // put your setup code here, to run once:
@@ -8,13 +9,15 @@ void setup() {
   pinMode(alarm_led_output, OUTPUT);
 }
 void motion_detector() {
-  if (digitalRead(motion_sensor_pin) == HIGH) {
-    //Put consequences for activated motion sensor here
-    Serial.println("Movement detected");
-    digitalWrite(alarm_led_output, HIGH);}
-   else {
-    Serial.println("Movement not detected");
-    digitalWrite(alarm_led_output, LOW);
+  if (!turn_off_alarm) {
+    if (digitalRead(motion_sensor_pin) == HIGH) {
+      //Put consequences for activated motion sensor here
+      Serial.println("Movement detected");
+      digitalWrite(alarm_led_output, HIGH);
+    } else {
+      Serial.println("Movement not detected");
+      digitalWrite(alarm_led_output, LOW);
+    }
   }
 }
 
