@@ -5,8 +5,8 @@
 #include <ESP8266WiFi.h>
 #include <ThingSpeak.h>
 
-const char* ssid = "Iphonemari";
-const char* pass = "mari1234";
+const char* ssid = "mariBF";
+const char* pass = "marimari";
 WiFiClient client;
 unsigned long channelID = 2399509;  //your TS channal
 const char* APIKey = "735H239HRB9DNBFA"; // Replace with your Write API Keyconst char* APIKeyRead = "CYB6IXO89M7E5RFD";   //your reading API
@@ -44,39 +44,31 @@ int sensorRawToPhys(int aValue){
 }
 
 // Checks the light intensity with a photo resistor and raises alarm if value is too high.
-void checkLightIntensity() {
+int checkLightIntensity() {
   int value = analogRead(PHOTO_RESISTOR);
 
   float lux = sensorRawToPhys(value);     
   Serial.println("Light intensity in Lux: ");
   Serial.println(lux);
 
-  ThingSpeak.setField(6, lux);
-    
+
   if (lux > 400 || lux < 0) {
     digitalWrite(LED_LIGHT, HIGH);
   } else {
     digitalWrite(LED_LIGHT,  LOW);
   }
+
+  return lux;
 }
 
 
 
-// Uses the humidity sensor to check both temperature and humidity. 
-// Raises alarm if either is outside acceptable interval.
-void checkTempAndHumidity() {
+// Uses the humidity sensor to check temperature. 
+// Raises alarm if the value is outside acceptable interval.
+int checkTemp() {
   Serial.println();
   int chk = DHT11.read(DHT11PIN);
-  float humidity = (float)DHT11.humidity;
   float temp = (float)DHT11.temperature;
-  ThingSpeak.setField(3, humidity);  
-  ThingSpeak.setField(4, temp);
-
-  if (humidity > 65 || humidity < 40){
-    digitalWrite(LED_HUMID, HIGH);
-  } else {
-    digitalWrite(LED_HUMID, LOW);
-  }
 
   if (temp > 27 || temp < 15){
     digitalWrite(LED_TEMP, HIGH);
@@ -84,11 +76,28 @@ void checkTempAndHumidity() {
     digitalWrite(LED_TEMP, LOW);
   }
 
-  Serial.print("Humidity (%): ");
-  Serial.println((float)DHT11.humidity, 2);
-
   Serial.print("Temperature  (C): ");
   Serial.println((float)DHT11.temperature, 2);
+  return temp;
+}
+
+// Uses the humidity sensor to check humidity. 
+// Raises alarm if the value is outside acceptable interval.
+int checkHumidity() {
+
+  Serial.println();
+  int chk = DHT11.read(DHT11PIN);
+  float humidity = (float)DHT11.humidity;
+  
+  if (humidity > 65 || humidity < 40){
+    digitalWrite(LED_HUMID, HIGH);
+  } else {
+    digitalWrite(LED_HUMID, LOW);
+  }
+
+  Serial.print("Humidity (%): ");
+  Serial.println((float)DHT11.humidity, 2);
+  return humidity;
 }
 
 void loop()
@@ -97,9 +106,14 @@ void loop()
   ThingSpeak.begin(client);
   client.connect(server, 80);
 
-  checkLightIntensity();
-  checkTempAndHumidity();
+  float lux = checkLightIntensity();
+  float temp = checkTemp();
+  float humidity = checkHumidity();
   
+  ThingSpeak.setField(3, humidity);  
+  ThingSpeak.setField(4, temp);
+  ThingSpeak.setField(6, lux);
+    
   ThingSpeak.writeFields(channelID, APIKey);
   client.stop();
   
