@@ -1,24 +1,27 @@
-// Remember to check the ports
-// Make sure the 3V3 and GND wires are connected
-
 #include <dht11.h>
 #include <ESP8266WiFi.h>
 #include <ThingSpeak.h>
 
+// Hotspot credentials
 const char* ssid = "mariBF";
 const char* pass = "marimari";
+
+// Initiate the client
 WiFiClient client;
-unsigned long channelID = 2399509;  //your TS channal
-const char* APIKey = "735H239HRB9DNBFA"; // Replace with your Write API Keyconst char* APIKeyRead = "CYB6IXO89M7E5RFD";   //your reading API
+
+// ThingSpeak settings
+unsigned long channelID = 2399509;  
+const char* APIKey = "735H239HRB9DNBFA"; 
 const char* server = "api.thingspeak.com";
 
-// Define the correct ports
+// Define the correct pins
 #define DHT11PIN D7
 #define LED_HUMID D1
 #define LED_TEMP D2
 #define LED_LIGHT D4
 #define PHOTO_RESISTOR A0
 
+// Initiate the humidity sensor object
 dht11 DHT11;
 
 // Set pinmodes for the LEDs and start the serial monitor.
@@ -31,11 +34,11 @@ void  setup()
   WiFi.begin(ssid, pass);
 }
 
-const int VIN = 5.0;
-const int R_light = 10000.0;
-
+// Function for translating from analog value to lux
+// Collected from https://www.aranacorp.com/en/luminosity-measurement-with-a-photoresistor/
 int sensorRawToPhys(int aValue){
-  // Code from https://www.aranacorp.com/en/luminosity-measurement-with-a-photoresistor/
+  const int VIN = 5.0;
+  const int R_light = 10000.0;
   // Conversion rule
   float Vout = float(aValue) * (VIN / float(1023));// Conversion analog to voltage
   float RLDR = (R_light * (VIN - Vout))/Vout; // Conversion voltage to resistance
@@ -46,11 +49,10 @@ int sensorRawToPhys(int aValue){
 // Checks the light intensity with a photo resistor and raises alarm if value is too high.
 int checkLightIntensity() {
   int value = analogRead(PHOTO_RESISTOR);
-
-  float lux = sensorRawToPhys(value);     
+  float lux = sensorRawToPhys(value);
+       
   Serial.println("Light intensity in Lux: ");
   Serial.println(lux);
-
 
   if (lux > 400 || lux < 0) {
     digitalWrite(LED_LIGHT, HIGH);
@@ -62,11 +64,9 @@ int checkLightIntensity() {
 }
 
 
-
 // Uses the humidity sensor to check temperature. 
 // Raises alarm if the value is outside acceptable interval.
 int checkTemp() {
-  Serial.println();
   int chk = DHT11.read(DHT11PIN);
   float temp = (float)DHT11.temperature;
 
@@ -102,21 +102,21 @@ int checkHumidity() {
 
 void loop()
 {
-
   ThingSpeak.begin(client);
   client.connect(server, 80);
 
+  // Use functions to get measurements of environmental values
   float lux = checkLightIntensity();
   float temp = checkTemp();
   float humidity = checkHumidity();
   
+  // Write measurements to ThingSpeak for visualisation
   ThingSpeak.setField(3, humidity);  
   ThingSpeak.setField(4, temp);
   ThingSpeak.setField(6, lux);
-    
   ThingSpeak.writeFields(channelID, APIKey);
   client.stop();
   
-  // Check the values every second.
+  // Check the values every second
   delay(1000);
 }
