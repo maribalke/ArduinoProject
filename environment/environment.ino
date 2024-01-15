@@ -1,3 +1,9 @@
+/*
+Responsibility: 
+Mari Helgesen, s231705 (60%) 
+Mari Balke Fjellang, s231450 (40%)
+*/
+
 #include <dht11.h>
 #include <ESP8266WiFi.h>
 #include <ThingSpeak.h>
