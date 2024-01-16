@@ -90,8 +90,6 @@ int checkTemp() {
 // Uses the humidity sensor to check humidity. 
 // Raises alarm if the value is outside acceptable interval.
 int checkHumidity() {
-
-  Serial.println();
   int chk = DHT11.read(DHT11PIN);
   float humidity = (float)DHT11.humidity;
   
