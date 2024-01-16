@@ -53,10 +53,6 @@ void setup() {
 
 void loop() {
 
-  /*
-  The fan is controlled using the global variable 'fanOn'. The motor will move as long as this variable is true.
-  */
-
   controlFan();
 
   // Check if a client has connected
@@ -121,6 +117,10 @@ void handleNotFound(){
 }
 
 void controlFan(){
+  /*
+  The fan is controlled using the global variable 'fanOn'. The motor will move as long as this variable is true.
+  */
+
   if(fanOn){
     myStepper.step(1);
   } else{
