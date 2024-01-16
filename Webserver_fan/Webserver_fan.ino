@@ -1,9 +1,3 @@
-/*
-Responsible for code: 
-60% Mari Balke Fjellang s231450
-40% Mari Helgesen s231705
-*/
-
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WiFiMulti.h>   // Include the Wi-Fi-Multi library
