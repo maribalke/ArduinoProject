@@ -28,63 +28,27 @@ Stepper myStepper(stepsPerRevolution, D0, D2, D1, D3);
 void handleRoot();  
 void handleNotFound();
 void setStateFan();
+void controlFan();
+void connectToWifi();
+void controlSleep();
 
 void setup() {
   Serial.begin(115200);
   delay(10);
 
+  controlSleep();
+
   // Setting speed of stepMotor  
   myStepper.setSpeed(rpm);
   
-  /* 
-  Connecting to WiFi network and set up web server
-  */
-  wifiMulti.addAP("mariBF", "marimari"); 
- 
-  Serial.println();
-  Serial.print("Connecting ...");
- 
-  while (wifiMulti.run() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-
-  if (MDNS.begin("iot")) {              // Start the mDNS responder for esp8266.local
-    Serial.println("mDNS responder started");
-  } else {
-    Serial.println("Error setting up MDNS responder!");
-  }
+  connectToWifi();
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/FAN", HTTP_POST, setStateFan);
   server.onNotFound(handleNotFound);
   server.begin();
 
-  /*
-  EEPROM
-  Write and read from EEPROM memory. The memory is read each time the program is started and the variable 'btnCount' is updated.
-  We increment the variable and overwrite the memory with the updated variable. The variable 'btnCount' is to keep track of wether the system should
-  go into sleep or wake up from sleep. 
-  */
   
-  // Allocates 12 bytes for writing to EEPROM memory
-  EEPROM.begin(12);
-
-  EEPROM.get(eepromAddress, btnCount);
-  btnCount++;
-
-  EEPROM.put(eepromAddress, btnCount);
-  EEPROM.commit();
-  EEPROM.end();
-
-  if (btnCount%2 == 0){
-    Serial.println("System is in deep sleep mode");
-    // Deep sleep mode until RESET is triggered again
-    ESP.deepSleep(0); 
-  }
 }
 
 void loop() {
@@ -93,11 +57,8 @@ void loop() {
   The fan is controlled using the global variable 'fanOn'. The motor will move as long as this variable is true.
   */
 
-  if(fanOn){
-    myStepper.step(1);
-  } else{
-    myStepper.step(0);
-  }
+  controlFan();
+
   // Check if a client has connected
   server.handleClient();
 }
@@ -157,5 +118,66 @@ void setStateFan(){
 
 void handleNotFound(){
   server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
+}
+
+void controlFan(){
+  if(fanOn){
+    myStepper.step(1);
+  } else{
+    myStepper.step(0);
+  }
+}
+
+void connectToWifi(){
+  /* 
+  Connecting to WiFi network and set up web server
+  */
+  wifiMulti.addAP("mariBF", "marimari"); 
+ 
+  Serial.println();
+  Serial.print("Connecting ...");
+ 
+  while (wifiMulti.run() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  if (MDNS.begin("iot")) {              // Start the mDNS responder for esp8266.local
+    Serial.println("mDNS responder started");
+  } else {
+    Serial.println("Error setting up MDNS responder!");
+  }
+}
+
+void controlSleep(){
+  /*
+  EEPROM
+  Write and read from EEPROM memory. The memory is read each time the program is started and the variable 'btnCount' is updated.
+  We increment the variable and overwrite the memory with the updated variable. The variable 'btnCount' is to keep track of wether the system should
+  go into sleep or wake up from sleep. 
+  */
+  
+  // Allocates 12 bytes for writing to EEPROM memory
+  EEPROM.begin(12);
+
+  EEPROM.get(eepromAddress, btnCount);
+  btnCount++;
+
+  EEPROM.put(eepromAddress, btnCount);
+  EEPROM.commit();
+  EEPROM.end();
+
+  if (btnCount%2 == 0){
+    Serial.println("");
+    Serial.println("System is in deep sleep mode");
+    // Deep sleep mode until RESET is triggered again
+    ESP.deepSleep(0); 
+  }else{
+    Serial.println("");
+    Serial.println("System is up and running");
+  }
 }
   
