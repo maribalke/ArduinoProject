@@ -1,0 +1,175 @@
+/*Insp from WriteSingleField code from ThingSpeak libary
+And key pad insp from
+https://arduinogetstarted.com/tutorials/arduino-keypad?utm_content=cmp-true
+Sleep mode code insp from the enviroment code
+*/
+
+
+#include <ESP8266WiFi.h>  //ESP82 lib to establish wifi connection
+#include "secrets.h"      //File with all the secret information
+#include "ThingSpeak.h"   // always include thingspeak header file after other header files and custom macros
+#include <Keypad.h>       //Keypad lib
+#include <Servo.h>        //Servo lib for the motor
+#include <EEPROM.h>
+
+char ssid[] = SECRET_SSID;  // Network SSID (name)
+char pass[] = SECRET_PASS;  // Network password
+int keyIndex = 0;           // Network key Index number (needed only for WEP)
+WiFiClient client;
+
+unsigned long myChannelNumber = SECRET_CH_ID;     //Thingspeak channel
+const char* myWriteAPIKey = SECRET_WRITE_APIKEY;  //Thingspeak write API key
+
+int output = 0;  //Var for thingspeak data
+
+#define RedLEDPIN D0  //Def red LED
+
+Servo myServo;
+
+const int RowNum = 4;  //Number of rows in keypad
+const int ColNum = 3;  //Number of columns in keypad
+int numTry;            //number of tries
+
+char KEYS[RowNum][ColNum] = {
+  { '1', '2', '3' },
+  { '4', '5', '6' },
+  { '7', '8', '9' },
+  { '*', '0', '#' }
+
+};  //Keypad matrix
+
+byte PinRows[RowNum] = { D1, D2, D3, D4 };  //Connecting rowpins with keypad
+byte PinCols[ColNum] = { D5, D6, D7 };      //Connecting columnpins with keypad
+
+Keypad keypad = Keypad(makeKeymap(KEYS), PinRows, PinCols, RowNum, ColNum);  //Making of keypad
+
+const String password = pw;  //Setting password
+String input_pw;             // Var containing input from keypad
+
+// Variables for putting the system to sleep
+int eepromAddress = 0;
+int btnCount = 0;
+
+
+void setup() {
+  Serial.begin(115200);  // Initialize
+  delay(10);
+
+  while (!Serial) {
+    ;  // wait for serial port to connect. Needed for Leonardo native USB port only
+  }
+
+  WiFi.mode(WIFI_STA);
+  ThingSpeak.begin(client);  // Initialize ThingSpeak
+
+  pinMode(RedLEDPIN, OUTPUT);     //LED to output
+  input_pw.reserve(100);          //Max input char
+  digitalWrite(RedLEDPIN, HIGH);  //LED high from start = system locked
+  myServo.attach(D8);             //Attach servo motor to pin
+  myServo.write(0);               //Set motor to start position
+
+  /*
+  EEPROM
+  Write and read from EEPROM memory. The memory is read each time the program is started and the variable 'btnCount' is updated.
+  We increment the variable and overwrite the memory with the updated variable. The variable 'btnCount' is to keep track of wether the system should
+  go into sleep or wake up from sleep. 
+  */
+
+  // Allocates 12 bytes for writing to EEPROM memory
+  EEPROM.begin(12);
+
+  EEPROM.get(eepromAddress, btnCount);
+  btnCount++;
+
+  EEPROM.put(eepromAddress, btnCount);
+  EEPROM.commit();
+  EEPROM.end();
+
+  if (btnCount % 2 == 0) {
+    Serial.println("System is in deep sleep mode");
+    // Deep sleep mode until RESET is triggered again
+    ESP.deepSleep(0);
+  }
+}
+
+void loop() {
+  // If statement to establish WiFi connection. None of the other code works if this WiFi connection isn't up and running.
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print("Attempting to connect to SSID: ");
+    Serial.println(SECRET_SSID);
+    while (WiFi.status() != WL_CONNECTED) {
+      WiFi.begin(ssid, pass);  // Connect to WPA/WPA2 network. Change this line if using open or WEP network
+      Serial.print(".");
+      delay(5000);
+    }
+    Serial.println("\nConnected.");  //Print when wifi is connected
+  }
+
+
+  char key = keypad.getKey();  // Getting key from keypad when key is pressed
+
+  //If statement which is triggered when a key on the keypad is pressed - this contains the majority of the programs intelligence
+  if (key) {
+    Serial.println(key);  //To follow which key is pressed
+
+    //* indicates start of password and # indicates end of password
+
+    if (key == '*') {
+      input_pw = "";  // resetting input variable
+    } else if (key == '#') {
+      if (password == input_pw) {  //triggered when password is correct
+        Serial.println("Korrekt password");
+        digitalWrite(RedLEDPIN, LOW);  //Alarm pin turned off
+
+        output = 1;  // Change thingspeak var to 1 which indicates system open
+
+        int x = ThingSpeak.writeField(myChannelNumber, 5, output, myWriteAPIKey);  // Write output to field 5 in ThingSpeak
+
+        //Check if succes when sending to thingspeak and print accordingly
+        if (x == 200) {
+          Serial.println("Channel update successful.");
+        } else {
+          Serial.println("Problem updating channel. HTTP error code " + String(x)); 
+        }
+
+
+        myServo.write(180);  //Change of servo position to indicated lock is open
+        numTry = 0;          // reset number of tries var
+
+      } else {  //Triggered when password incorrect
+        Serial.println("Password ikke korrekt");
+        numTry = numTry + 1;            //updating number of tries
+        digitalWrite(RedLEDPIN, HIGH);  //Alarm LED set to high
+        myServo.write(0);               //Change of servo position to indicate system locked
+        if (numTry == 3) {              //triggered when password is wrong the third time
+          Serial.println("To many tries");
+          alarm();     //LED alarm display
+          numTry = 0;  //Reset number of tries
+        }
+
+
+        output = 0;  // change thingspeak value to 0 - indicates system locked
+
+        int x = ThingSpeak.writeField(myChannelNumber, 5, output, myWriteAPIKey);  // Write output to ThingSpeak field 5.
+        if (x == 200) {                                                            //Check if sending is succesfull
+          Serial.println("Channel update successful.");
+        } else {
+          Serial.println("Problem updating channel. HTTP error code " + String(x));
+        }
+      }
+      input_pw = "";  // reset input var
+    } else {
+      input_pw += key;  // Adding pressed key to input password
+    }
+  }
+}
+
+void alarm() {  //LED alarm blinking function
+  for (int i = 0; i < 30; i++) {
+    digitalWrite(RedLEDPIN, HIGH);
+    delay(50);
+    digitalWrite(RedLEDPIN, LOW);
+    delay(50);
+  }
+  digitalWrite(RedLEDPIN, HIGH);
+}
