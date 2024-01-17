@@ -1,0 +1,153 @@
+#include <ESP8266WiFi.h>
+#include "secrets.h"
+#include "ThingSpeak.h"  // always include thingspeak header file after other header files and custom macros
+//Network connectivity constants
+char ssid[] = SECRET_SSID;  // your network SSID (name)
+char pass[] = SECRET_PASS;  // your network password
+int keyIndex = 0;           // your network key Index number (needed only for WEP)
+WiFiClient client;
+unsigned long myChannelNumber = SECRET_CH_ID;
+const char* myWriteAPIKey = SECRET_WRITE_APIKEY;
+
+//Variables for laser sensor
+int LED_output = 3;                //LED for testing
+int laser_sensor_pin = D0;         //Pin for output from laser sensor
+int laser_pin = D4;
+
+//Variables for motion sensor
+int motion_sensor_pin = D0;  //Pin connected to motion sensors output
+int alarm_led_output = D1;   //Not important, output pin for testing
+
+//Variables for the general alarm system
+bool alarm_triggered = false;  //Boolean variable that indicates if the alarm is triggered
+bool turn_off_alarm = false;   //Toggle the alarm, 1 for OFF
+int buzzer_pin = 5;
+int red_LED = 6;
+bool channel_updated = false;
+
+void setup() {
+  Serial.begin(9600);  // Initialize serial
+
+  WiFi.mode(WIFI_STA);
+  ThingSpeak.begin(client);  // Initialize ThingSpeak
+  //Pins for laser sensor
+  pinMode(laser_sensor_pin, INPUT);
+  pinMode(LED_output, OUTPUT);
+  pinMode(laser_pin, OUTPUT);
+  //Pins for motion sensor
+  pinMode(motion_sensor_pin, INPUT_PULLUP);
+  pinMode(alarm_led_output, OUTPUT);
+  //Reset back-end values
+  send_data(7, 0);
+  send_data(8, 0);
+  digitalWrite(laser_pin, HIGH);
+}
+
+//Function for the laser sensor
+bool laser_detector() {
+  if (!turn_off_alarm) {
+    laser_sensor_value = analogRead(laser_sensor_pin);
+    if (laser_sensor_value < laser_sensor_threshold) {
+      //Consequences for triggering the laser sensor
+      Serial.println("Alarm triggered");
+      digitalWrite(alarm_led_output, HIGH);
+      alarm_triggered = true;
+      return true;
+    } else {
+      //Consequence for no alarm triggered
+      Serial.println("No alarm triggered");
+      digitalWrite(alarm_led_output, LOW);
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+//Function for the motion detector
+bool motion_detector() {
+  if (!turn_off_alarm) {
+    if (digitalRead(motion_sensor_pin) == HIGH) {
+      //Put consequences for activated motion sensor here
+      Serial.println("Movement detected");
+      digitalWrite(alarm_led_output, HIGH);
+      alarm_triggered = true;
+      return true;
+    } else {
+      Serial.println("Movement not detected");
+      digitalWrite(alarm_led_output, LOW);
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+void toggle_alarm() {
+  turn_off_alarm = !turn_off_alarm;
+}
+
+void send_data(int channel, int data) {
+  // write to the ThingSpeak channel
+  int x = ThingSpeak.writeField(myChannelNumber, channel, data, myWriteAPIKey);
+  if (x == 200) {
+    Serial.println("Channel update successful.");
+  } else {
+    Serial.println("Problem updating channel. HTTP error code " + String(x));
+  }
+}
+
+void wifi_connecter() {
+  // Connect or reconnect to WiFi
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print("Attempting to connect to SSID: ");
+    Serial.println(SECRET_SSID);
+    while (WiFi.status() != WL_CONNECTED) {
+      WiFi.begin(ssid, pass);  // Connect to WPA/WPA2 network. Change this line if using open or WEP network
+      Serial.print(".");
+      delay(5000);
+    }
+    Serial.println("\nConnected.");
+  }
+}
+
+void loop() {
+  wifi_connecter();
+  if (ThingSpeak.getFieldAsInt(5) == 1) {
+    if (turn_off_alarm) {
+      for (int i = 0; i < 3; i++) {
+        send_data(7, 0);
+        send_data(8, 0);
+        delay(5100);
+      }
+      turn_off_alarm = true;
+      channel_updated = false;
+    } else {
+    }
+  } else {
+    turn_off_alarm = false;
+    if (motion_detector()) {
+      channel_updated = false;
+      send_data(7, 1);
+      delay(15000);  //SLET MIG
+    } else if (!motion_detector()) {
+      if (!channel_updated) {
+        send_data(7, 0);
+        channel_updated = true;
+      } else {
+      }
+    } else if (laser_detector()) {
+      if (!channel_updated) {
+        channel_updated = false;
+        send_data(8, 1);
+        channel_updated = true;
+      } else {
+      }
+    } else if (!laser_detector()) {
+      if (!channel_updated) {
+        send_data(8, 0);
+        channel_updated = true;
+      } else {
+      }
+    }
+  }
+}
