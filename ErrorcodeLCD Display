@@ -45,66 +45,116 @@ void setup() {
   }
 }
 
+void clear_display(){
+    lcd.setCursor(0, 0);
+  lcd.print("                ");
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
+}
+
 void display_error(int errorID) {
   Serial.println("Displaying error with ID: " + String(errorID));
-  
-  lcd.setCursor(0, 0);
+  if(errorID < 7){
+    lcd.setCursor(0, 0);
   lcd.print("ERROR CODE: ");
   lcd.print(errorID);
+  }
   lcd.setCursor(0, 1);
   lcd.print(error_array[errorID]);
 }
+
+unsigned long lastErrorDisplayTime = 0;
+const long errorDisplayInterval = 5000;  // Delay between error displays in milliseconds
+
+int lastErrorCode = -1;  // Initialize to an invalid error code
 
 void loop() {
   statusCode = ThingSpeak.readMultipleFields(Securityandenvironmentatthegallery);
 
   if (statusCode == 200) {
-    if (ThingSpeak.getFieldAsInt(field[0]) == 1) {
-      Serial.println("Error in Field 1");
-      display_error(6);
-    } else if (ThingSpeak.getFieldAsInt(field[1]) == 1) {
-      Serial.println("Error in Field 2");
-      display_error(6);
-    } else if (ThingSpeak.getFieldAsFloat(field[2]) < 40) {
-      Serial.println("Error in Field 3 (Less than 40)");
-      display_error(0);
-    } else if (ThingSpeak.getFieldAsFloat(field[2]) > 65) {
-      Serial.println("Error in Field 3 (Greater than 65)");
-      display_error(1);
-    } else if (ThingSpeak.getFieldAsFloat(field[3]) < 15) {
-      Serial.println("Error in Field 4 (Less than 15)");
-      display_error(3);
-    } else if (ThingSpeak.getFieldAsFloat(field[3]) > 27) {
-      Serial.println("Error in Field 4 (Greater than 27)");
-      display_error(4);
-    } else if (ThingSpeak.getFieldAsInt(field[4]) == 1) {
-      Serial.println("Error in Field 5");
-      display_error(8);
-    } else if (ThingSpeak.getFieldAsInt(field[5]) == 1) {
-      Serial.println("Error in Field 6");
-      display_error(2);
-    } else if (ThingSpeak.getFieldAsInt(field[6]) == 1) {
-      Serial.println("Error in Field 7");
-      display_error(5);
-    } else if (ThingSpeak.getFieldAsInt(field[7]) == 1) {
-      Serial.println("Error in Field 8");
-      display_error(5);
-    }
-    else {
-      display_error(9);
-    }
+    float humidity = ThingSpeak.getFieldAsFloat(field[2]);
+    float temperature = ThingSpeak.getFieldAsFloat(field[3]);
+    int motionStatus = ThingSpeak.getFieldAsInt(field[6]);
+    int securityStatus = ThingSpeak.getFieldAsInt(field[7]);
 
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
-      
-      currentErrorCode = (currentErrorCode + 1) % 10;  // Assuming you have 10 error codes
-      
-      display_error(currentErrorCode);
+    // Check if humidity and temperature values are valid
+    
+      // Reset the display for each iteration
+      clear_display();
+
+      int errorCode = -1;  // Initialize to an invalid error code
+
+      // Handle humidity-related errors
+      if (humidity > 40) {
+        Serial.println("Error in Field 3 (Less than 40)");
+        display_error(0);
+        Serial.print("Humidity is");
+        Serial.println(humidity);
+        errorCode = 0;
+      } else if (humidity < 65) {
+        Serial.println("Error in Field 3 (Greater than 65)");
+        display_error(1);
+        errorCode = 1;
+      }
+
+      // Handle temperature-related errors
+      if (temperature > 15) {
+        Serial.println("Error in Field 4 (Less than 15)");
+        display_error(3);
+        Serial.print("temp is");
+        Serial.println(temperature);
+        errorCode = 3;
+      } else if (temperature < 27) {
+        Serial.println("Error in Field 4 (Greater than 27)");
+        display_error(4);
+        errorCode = 4;
+      }
+
+      // Handle other errors (motionStatus and securityStatus)
+      if (motionStatus == 1) {
+        Serial.println("Error in Field 7 (Motion detected)");
+        display_error(5);
+        errorCode = 5;
+      }
+
+      if (securityStatus == 1) {
+        Serial.println("Error in Field 8 (Security ON)");
+        display_error(7);
+        errorCode = 7;
+      }
+
+      // If no errors, display system OK
+      if (errorCode == -1) {
+        Serial.println("System OK");
+        display_error(9);
+      }
+
+      // Check if the error code has changed
+      if (errorCode != lastErrorCode) {
+        lastErrorCode = errorCode;
+        lastErrorDisplayTime = millis();
+      }
+     else {
+      //humidity or temperature is not available
+      Serial.println("Humidity or temperature not available");
+      display_error(9);
+      lastErrorCode = 9;
+      lastErrorDisplayTime = millis();
     }
   } else {
     Serial.print("Problem reading channel. HTTP error code " + String(statusCode));
   }
 
+  // Check if it's time to display the next error
+  if (millis() - lastErrorDisplayTime >= errorDisplayInterval) {
+    unsigned long currentMillis = millis();
+    lastErrorDisplayTime = currentMillis;
+
+    // Update the error code and display the error
+    lastErrorCode = (lastErrorCode + 1) % 10;  // for 10 error codes
+    display_error(lastErrorCode);
+  }
+
+  // Delay before the next iteration
   delay(2000);
 }
