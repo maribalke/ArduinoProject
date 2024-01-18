@@ -85,26 +85,26 @@ void loop() {
       int errorCode = -1;  // Initialize to an invalid error code
 
       // Handle humidity-related errors
-      if (humidity > 40) {
+      if (humidity < 40) {
         Serial.println("Error in Field 3 (Less than 40)");
         display_error(0);
         Serial.print("Humidity is");
         Serial.println(humidity);
         errorCode = 0;
-      } else if (humidity < 65) {
+      } else if (humidity > 65) {
         Serial.println("Error in Field 3 (Greater than 65)");
         display_error(1);
         errorCode = 1;
       }
 
       // Handle temperature-related errors
-      if (temperature > 15) {
+      if (temperature < 15) {
         Serial.println("Error in Field 4 (Less than 15)");
         display_error(3);
         Serial.print("temp is");
         Serial.println(temperature);
         errorCode = 3;
-      } else if (temperature < 27) {
+      } else if (temperature > 27) {
         Serial.println("Error in Field 4 (Greater than 27)");
         display_error(4);
         errorCode = 4;
